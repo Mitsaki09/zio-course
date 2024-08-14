@@ -1,6 +1,7 @@
 package effects
 
 import scala.concurrent.Future
+import scala.io.StdIn
 
 object Effects {
 
@@ -28,14 +29,14 @@ object Effects {
 
   // side effect are inevitable
 
-  /*
+  /**
   Effect properties
   - the type signature describes what KIND of computation it will perform
   - the type signature describes the type of VALUE that it will produce
   - if side effects are required, construction must be separate from the EXECUTION
    */
 
-  /*
+  /**
   Example Options = possibly absent values
   - type signature describes the kind of computation = a possibly absent value
   - type signature says the computation returns an A, if the computation does produce something
@@ -45,7 +46,7 @@ object Effects {
    */
   val anOption: Option[Int] = Option(42)
 
-  /*
+  /**
   Example 2: Future
   - describes an asynchronous computation
   - produces a value of type A, if it finishes and it's successful
@@ -56,7 +57,7 @@ object Effects {
   import scala.concurrent.ExecutionContext.Implicits.global
   val anFuture: Future[Int] = Future(42)
 
-  /*
+  /**
   Example 3: MyIO
   - describes a computation which might perform side effects
   - produces a values of type A if the computation is successful
@@ -77,8 +78,51 @@ object Effects {
     42
   })
 
+  /**
+   * Exercises - create some IO which
+   * 1. measure the current time of the system
+   * 2. measure the duration of a computation
+   *  - use exercise 1
+   *  - use map/flatMap combinations of MyIO
+   *  3. read something from console
+   *  4. print something in the console (e.g "what's your name"), than read , then print a welcome message
+   */
+
+    // 1
+    val currentTime: MyIO[Long] = MyIO(() => System.currentTimeMillis())
+
+    // 2
+    def measure[A](computation: MyIO[A]): MyIO[(Long, A)] = for {
+      startTime <- currentTime
+      result    <- computation
+      endTime   <- currentTime
+    } yield (endTime - startTime, result)
+
+  def measure_v2[A](computation: MyIO[A]): MyIO[(Long, A)] = {
+    currentTime.flatMap { startTime =>
+      computation.flatMap { result =>
+        currentTime.map { endTime =>
+          (endTime - startTime, result)
+        }
+      }
+    }
+  }
+  // 3
+
+  val readLine: MyIO[String] = MyIO(() => StdIn.readLine())
+  def putStrLn(line: String): MyIO[Unit] = MyIO(() => println(line))
+
+    // 4
+  val program = for {
+    _ <- putStrLn("what's your name?")
+    name <- readLine
+    _ <- putStrLn(s"Welcome to Rock the JVM, $name!")
+  } yield ()
+
+
   def main(args: Array[String]) : Unit = {
     anIOWithSideEffects.unsafeRun()
+    program.unsafeRun()
 
   }
 
